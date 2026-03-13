@@ -2,7 +2,7 @@
 (tham khao tu https://www.instructables.com/Nova-Spot-Micro-a-Spot-Mini-Clone)
 ## How to set up ?
 SpotMicro Robot Dog — Installation Guide
-![Banner](image/z7617608427412_38e81755e0fdc324a346715e398cc415.jgp)
+![Banner](img/z7617608427412_38e81755e0fdc324a346715e398cc415.jgp)
 1.  System Requirements
 
 -   Windows 10 / Windows 11
