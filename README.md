@@ -1,4 +1,6 @@
 # RObot dog
+
+## How to set up ?
 SpotMicro Robot Dog — Installation Guide
 
 1.  System Requirements
