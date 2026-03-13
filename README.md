@@ -1,4 +1,4 @@
-z7617608427412_38e81755e0fdc324a346715e398cc415.jpg# RObot dog
+# RObot dog
 (tham khao tu https://www.instructables.com/Nova-Spot-Micro-a-Spot-Mini-Clone)
 ![Pic](img/z7617608427412_38e81755e0fdc324a346715e398cc415.jpg)
 ## How to set up ?
