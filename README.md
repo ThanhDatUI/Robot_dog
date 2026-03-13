@@ -1,5 +1,5 @@
 # RObot dog
-
+(tham khao tu https://www.instructables.com/Nova-Spot-Micro-a-Spot-Mini-Clone)
 ## How to set up ?
 SpotMicro Robot Dog — Installation Guide
 
