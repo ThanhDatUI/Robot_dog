@@ -1,142 +1,134 @@
-# SpotMicro
+SpotMicro Robot
 
-SpotMicro is a 3D model that I found on [Thingiverse](https://www.thingiverse.com/thing:3445283). I was interested in
-the model not only because it looks good but because it also presents some fun robotics challenges.
+SpotMicro là một mô hình robot bốn chân được phát triển dựa trên thiết
+kế 3D từ Thingiverse. Dự án tập trung vào việc xây dựng một hệ thống
+robot hoàn chỉnh gồm phần cứng, phần mềm điều khiển và môi trường mô
+phỏng.
 
-Check out [https://rogerparks.com/projects/sportmicro/](https://rogerparks.com/projects/spotmicro/) for some videos
-showing the robot in action.
+Video: https://rogerparks.com/projects/sportmicro/
 
-## Hardware
+  ----------
+  HARDWARE
+  ----------
 
-I outfitted the robot with a set of electronics similar to those listed on
-the [SpotMicroAI](https://spotmicroai.readthedocs.io/en/latest/gettingStarted/#electronics) site. Regrettably, I printed
-the model in PETG which made gluing components together very difficult. Many of the parts were modified using
-PrusaSlicer or mechanically, after printing, to make the servos fit.
+Danh sách linh kiện:
 
-![](img/spot_hardware.drawio.png)
+12 - DS3235 180° Coreless Servo (35kg) 1 - MicroPython PyBoard v1.1 1 -
+MPU-6050 6DOF Gyroscope + Accelerometer 1 - LCD I2C 16x2 1 - PCA9685
+16-Channel I2C Servo Driver 1 - YPG 20A HV SBEC / XL4015 DC-DC Step Down
+1 - FrSky X4R SBUS RC Receiver 1 - 3S 40A BMS cho pin 18650 3 - Sony
+Murata VTC5A 18650 2600mAh 25A Battery
 
-| Quantity | Item                                                   |
-|----------|--------------------------------------------------------|
-| 12       | DS3235-180 Degree Coreless Servo 35kg                  |
-| 1        | MicroPython PyBoard v1.1                               |
-| 1        | MPU-6050 6 DOF 3 Axis Gyroscope + Accelerometer Module |
-| 1        | I2C 16x2 LCD Module                                    |
-| 1        | 16 Channel PCA9685 I2C-Servo Driver                    |
-| 1        | YPG 20A HV SBEC / XL4015 DC-DC Step Down               |
-| 1        | FrSky x4R SBUS RC Receiver                             |
-| 1        | 3S 40A BMS For 18650 Lithium Battery                   |
-| 3        | Sony Murata VTC5A 18650 2600mAh 25A Battery            |
+  -----------------------
+  SOFTWARE ARCHITECTURE
+  -----------------------
 
-## Software
+Chu kỳ vòng lặp điều khiển: 19.65 ms
 
-### Architecture
+Trong mỗi vòng lặp:
 
-#### Main Loop
+1.  Đọc điện áp pin thông qua ADC của PyBoard.
+2.  Cập nhật LCD hiển thị điện áp pin và thời gian vòng lặp.
+3.  Đọc tín hiệu RC thông qua SBUS UART.
+4.  Cập nhật State Machine.
+5.  Nhận mục tiêu vị trí chân robot (x, y, z).
+6.  Profiler tính toán inverse kinematics.
+7.  Gửi lệnh servo qua PCA9685 bằng I2C.
+8.  Xuất packet debug qua UART.
 
-Every 19.65 milliseconds...
+  --------------------
+  UART PACKET FORMAT
+  --------------------
 
-1. The LiFePO4 battery is sampled via an ADC on the PyBoard, after passing through a voltage divider.
-2. The LCD screen is updated with the battery voltage and when the last main loop occurred.
-3. RC commands are read in via the SBUS UART.
-4. The State Machine is updated.
-    1. The State Machine will not output servo command until it is armed via RC input.
-    2. Once armed the State Machine monitors the Profiler and uses RC input to add new position targets. Position
-       targets are provided to the Profiler as cartesian coordinates (x, y, z) that define where the tip of each leg
-       should be.
-5. New servo commands from the Profiler are sent to the servos by updating the PCA9685 via I2C.
-    1. The Profiler is responsible for inverse kinematics and ensuring that motion is smooth.
-6. RC Command and Servo Command packets are sent to the UART for debug and simulation purposes.
+Packet bắt đầu: STX () Packet kết thúc: ETX ()
 
-### UART
+Các giá trị phân tách bằng TAB.
 
-This is a definition of the types of packets that are sent out of the robot's UART.
+  -------------------
+  RC COMMAND PACKET
+  -------------------
 
-All packets start with ``\x02`` (STX) and end with the sequence ``\x03\r\n`` (ETX, carriage return, line feed).
+Packet type: 2
 
-Values inside packets are delimited by `\t` (TAB). The **first** value indicates the packet type which are defined
-below. The **final** value is the time that the last loop finished, in microseconds. Since the packet is generated as
-part of the control loop, this time is useful for debug.
+Ví dụ: 2 980 980 980 3 4 5 500 499 8 9 10 11 12 13 14 15 16 17 18 123456
 
-#### RC Command Packet
+  ----------------------
+  SERVO COMMAND PACKET
+  ----------------------
 
-RC Command Packets have a code of `2`. Each value indicates the command associated with one of the RC channels.
+Packet type: 3
 
-    2	980	980	980	3	4	5	500	499	8	9	10	11	12	13	14	15	16	17	18	123456
+12 giá trị đầu: góc servo Giá trị tiếp: state machine Giá trị tiếp: số
+target còn trong queue Giá trị cuối: thời gian vòng lặp
 
-#### Servo Command Packet
+Ví dụ: 3 515 1 -54 -54 140 140 51 51 -54 -54 140 140 4 0 123456
 
-Servo Command Packets have a code of `3`. The first 12 values indicate the angle in degrees that will be commanded to
-one of the 12 servos. The next value indicates the current State Machine state. The next value indicates how many
-position targets are queued up.
+Thứ tự servo:
 
-    3	515	1	-54	-54	140	140	51	51	-54	-54	140	140	4	0	123456
+front_right_shoulder front_left_shoulder front_right_leg front_left_leg
+front_right_foot front_left_foot rear_right_shoulder rear_left_shoulder
+rear_right_leg rear_left_leg rear_right_foot rear_left_foot
 
-**Note:** The code typically orders the 12 servos as follows. When viewed in the following format leg components are
-grouped together.
+  ------------------
+  SIMULATION SETUP
+  ------------------
 
-    front_right_shoulder, front_left_shoulder,
-    front_right_leg, front_left_leg,
-    front_right_foot, front_left_foot,
-    rear_right_shoulder, rear_left_shoulder,
-    rear_right_leg, rear_left_leg,
-    rear_right_foot, rear_left_foot,
+Clone robot model:
 
-### Simulation Virtual Environment Setup
+git clone
+https://gitlab.com/custom_robots/spotmicro/nvidia-jetson-nano.git cd
+nvidia-jetson-nano git checkout 108060ee1e182b1e928ee04db1a5c739a9209621
+cd ..
 
-![](img/spot_simulation.drawio.png)
+Sau khi clone cần xóa lidar trong:
 
-The simulator depends on models from a repo which will be checked out using the following commands. Once this is done,
-**remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` from
-`urdf\spotmicroai_gen.urdf.xml` to get a robot model that does not have the lidar backpack.
+urdf/spotmicroai_gen.urdf.xml
 
-    git clone https://gitlab.com/custom_robots/spotmicro/nvidia-jetson-nano.git
-    cd nvidia-jetson-nano
-    git checkout 108060ee1e182b1e928ee04db1a5c739a9209621
-    cd ..
+Xóa các node:
 
-This project features both software and hardware in the loop simulators. The simulation environment can be setup using
-the following commands. Python 3.7.8 32 bit was used for development.
+  -------------------
+  PYTHON SIMULATION
+  -------------------
 
-    cd spot_sim
-    pipenv install --deploy
-    pipenv run python spot_sim.py
-    cd ..
+Yêu cầu: Python 3.7.8 (32-bit)
 
-### Software Simulation
+Cài đặt:
 
-#### Software Simulation With RC Input Via GUI
+cd spot_sim pipenv install –deploy pipenv run python spot_sim.py cd ..
 
-In this mode, the RC Simulator GUI application writes RC packets to `spot_sim_data.txt`. These packets are consumed by
-the simulation environment to control the robot. This is the default mode of operation so no additional setup or
-hardware is required.
+  ------------------
+  SIMULATION MODES
+  ------------------
 
-#### Software Simulation With RC Input Via Transmitter
+1.  Software Simulation (GUI RC) RC Simulator GUI ghi dữ liệu vào file:
+    spot_sim_data.txt
 
-In this mode of operation, a physical RC transmitter feeds RC commands to the RC receiver on the robot. This is
-accomplished fairly simply since the robot writes RC Command Packets out to a UART.
+2.  Software Simulation (RC Transmitter) RC transmitter thật gửi dữ liệu
+    qua receiver.
 
-### Hardware Simulation
+3.  Hardware Simulation Robot xử lý lệnh và gửi servo command packet ra
+    UART.
 
-In this mode of operation, a physical RC transmitter feeds RC commands to the RC receiver on the robot and the robot
-decides how to actuate the servos. This is accomplished fairly simply since the robot writes Servo Command Packets out
-to a UART.
+  -------------
+  UPLOAD CODE
+  -------------
 
-### Upload
+Script:
 
-The `micropython/pyboard.py` and `micropython\upload.py` scripts work together to enable a more streamlined development
-flow when working with the PyBoard. The script diffs source files and only updates those that are out of date. The
-script can be used as follows where `<COM>` is the COM port associated with the robot's UART.
+micropython/pyboard.py micropython/upload.py
 
-    cd spot_sim
-    pipenv run upload.py <COM>
-    cd ..
+Upload:
 
-## Future Work
+cd spot_sim pipenv run upload.py COM_PORT cd ..
 
-* Adjust the window read timeout in `rc_sim.py` to allow the COM port to be copied over to `spot_sim_data.txt` more
-  frequently. This should be done after testing with hardware in loop simulation, since the servo commands need to be
-  updated rapidly.
-* Remove debug flags from micropython directory. They should no longer be necessary since the kinematics demo was
-  removed from the Software Simulation.
-* Test upload script now that it no longer reads from the COM port after upload. This functionality is now provided by
-  the RC Simulator GUI application.
+Ví dụ:
+
+pipenv run upload.py COM5
+
+  -------------
+  FUTURE WORK
+  -------------
+
+-   Điều chỉnh timeout trong rc_sim.py.
+-   Xóa debug flag trong thư mục micropython.
+-   Kiểm tra lại upload script.
